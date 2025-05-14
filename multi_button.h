@@ -10,11 +10,13 @@
 #include <string.h>
 
 //According to your need to modify the constants.
-#define TICKS_INTERVAL    5	//ms
+#define TICKS_INTERVAL    10	//ms
 #define DEBOUNCE_TICKS    3	//MAX 7 (0 ~ 7)
-#define SHORT_TICKS       (300 /TICKS_INTERVAL)
-#define LONG_TICKS        (1000 /TICKS_INTERVAL)
+#define SHORT_TICKS       (150  / TICKS_INTERVAL)
+#define LONG_TICKS        (1000 / TICKS_INTERVAL)
 
+#define EVENT_ENABLE      1     //Enable EVENT GET
+#define DOUBLE_ENABLE     1     //Enable Double Click
 
 typedef void (*BtnCallback)(void*);
 
@@ -30,6 +32,7 @@ typedef enum {
 	NONE_PRESS
 }PressEvent;
 
+#if EVENT_ENABLE
 typedef struct Button {
 	uint16_t ticks;
 	uint8_t  repeat : 4;
@@ -43,14 +46,43 @@ typedef struct Button {
 	BtnCallback  cb[number_of_event];
 	struct Button* next;
 }Button;
-
+#else
+  #if DOUBLE_ENABLE
+    typedef struct Button {
+      uint16_t ticks;
+      uint8_t  repeat;
+      uint8_t  state : 3;
+      uint8_t  debounce_cnt : 3;
+      uint8_t  active_level : 1;
+      uint8_t  button_level : 1;
+      uint8_t  button_id;
+      uint8_t  (*hal_button_Level)(uint8_t button_id_);
+      BtnCallback  cb[number_of_event];
+      struct Button* next;
+    }Button;
+  #else
+    typedef struct Button {
+      uint16_t ticks;
+      uint8_t  state : 3;
+      uint8_t  debounce_cnt : 3;
+      uint8_t  active_level : 1;
+      uint8_t  button_level : 1;
+      uint8_t  button_id;
+      uint8_t  (*hal_button_Level)(uint8_t button_id_);
+      BtnCallback  cb[number_of_event];
+      struct Button* next;
+    }Button;
+  #endif
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void button_init(struct Button* handle, uint8_t(*pin_level)(uint8_t), uint8_t active_level, uint8_t button_id);
 void button_attach(struct Button* handle, PressEvent event, BtnCallback cb);
+#if EVENT_ENABLE
 PressEvent get_button_event(struct Button* handle);
+#endif
 int  button_start(struct Button* handle);
 void button_stop(struct Button* handle);
 void button_ticks(void);
