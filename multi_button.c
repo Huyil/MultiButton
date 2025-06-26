@@ -5,7 +5,7 @@
 
 #include "multi_button.h"
 
-#define EVENT_CB(ev)   if(handle->cb[ev])handle->cb[ev]((void*)handle)
+#define EVENT_CB(ev)   if(handle->cb[ev])handle->cb[ev]((Button*)handle)
 #if EVENT_ENABLE
 #define EVENT_SET(ev)  handle->event=(uint8_t)(ev)
 #else
@@ -39,6 +39,10 @@ void button_init(struct Button* handle, uint8_t(*pin_level)(uint8_t), uint8_t ac
 	handle->button_level = !active_level;
 	handle->active_level = active_level;
 	handle->button_id = button_id;
+	if(handle->longTick==0)  handle->longTick = LONG_TICKS;
+#if DOUBLE_ENABLE
+  //if(handle->shortTick==0) handle->shortTick = SHORT_TICKS;
+#endif
 }
 
 /**
@@ -96,7 +100,7 @@ static void button_handler(struct Button* handle)
 			EVENT_CB(PRESS_DOWN);
 			handle->ticks = 0;
       #if DOUBLE_ENABLE
-			handle->repeat = 1;
+			if(handle->shortTick) handle->repeat = 1;
       #endif
 			handle->state = 1;
 		} else {
@@ -110,13 +114,15 @@ static void button_handler(struct Button* handle)
 			EVENT_CB(PRESS_UP);
 			handle->ticks = 0;
 	#if DOUBLE_ENABLE
-			handle->state = 2;
-	#else
-			EVENT_SET(SINGLE_CLICK);
-			EVENT_CB(SINGLE_CLICK);
-			handle->state = 0;
+			if(handle->shortTick) handle->state = 2;
+			else
 	#endif
-		} else if(handle->ticks > LONG_TICKS) {
+			{
+				EVENT_SET(SINGLE_CLICK);
+				EVENT_CB(SINGLE_CLICK);
+				handle->state = 0;
+			}
+		} else if(handle->ticks > handle->longTick) {
 			EVENT_SET(LONG_PRESS_START);
 			EVENT_CB(LONG_PRESS_START);
 			handle->state = 5;
@@ -133,7 +139,7 @@ static void button_handler(struct Button* handle)
 			EVENT_CB(PRESS_REPEAT); // repeat hit
 			handle->ticks = 0;
 			handle->state = 3;
-		} else if(handle->ticks > SHORT_TICKS) { //released timeout
+		} else if(handle->ticks > handle->shortTick) { //released timeout
 			if(handle->repeat == 1) {
 				EVENT_SET(SINGLE_CLICK);
 				EVENT_CB(SINGLE_CLICK);
@@ -142,6 +148,10 @@ static void button_handler(struct Button* handle)
 				EVENT_CB(DOUBLE_CLICK); // repeat hit
 			}
 			handle->state = 0;
+		} else if(handle->repeat == 2){ //Á¬ÐøË«»÷
+			EVENT_SET(DOUBLE_CLICK);
+			EVENT_CB(DOUBLE_CLICK); // repeat hit
+			handle->repeat = 0;
 		}
 		break;
 
@@ -149,13 +159,13 @@ static void button_handler(struct Button* handle)
 		if(handle->button_level != handle->active_level) { //released press up
 			EVENT_SET(PRESS_UP);
 			EVENT_CB(PRESS_UP);
-			if(handle->ticks < SHORT_TICKS) {
+			if(handle->ticks < handle->shortTick) {
 				handle->ticks = 0;
 				handle->state = 2; //repeat press
 			} else {
 				handle->state = 0;
 			}
-		} else if(handle->ticks > SHORT_TICKS) { // SHORT_TICKS < press down hold time < LONG_TICKS
+		} else if(handle->ticks > handle->shortTick) { // SHORT_TICKS < press down hold time < LONG_TICKS
 			handle->state = 1;
 		}
 		break;

@@ -111,6 +111,9 @@ void BTN1_PRESS_UP_Handler(void* btn)
 int main()
 {
 	button_init(&btn1, read_button_GPIO, 0, btn1_id);
+	btn1.longTick = 2000 / TICKS_INTERVAL; //设定独立的长按判断延迟(2s), 不设定默认使用LONG_TICKS
+	btn1.shortTick = 200 / TICKS_INTERVAL; //设定独立的双击判断延迟(双击间隔200ms), 不设定默认关闭双击
+	
 	button_attach(&btn1, PRESS_DOWN,       BTN1_PRESS_DOWN_Handler);
 	button_attach(&btn1, PRESS_UP,         BTN1_PRESS_UP_Handler);
 	button_attach(&btn1, PRESS_REPEAT,     BTN1_PRESS_REPEAT_Handler);
